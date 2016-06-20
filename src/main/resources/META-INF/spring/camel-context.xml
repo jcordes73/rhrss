@@ -2,10 +2,14 @@
 <!-- Configures the Camel Context-->
 <beans xmlns="http://www.springframework.org/schema/beans"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd        http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
-    <camelContext id="wq" xmlns="http://camel.apache.org/schema/spring">
-        <route id="wg-mqtt-in">
-            <from uri="mqtt:wq-in?userName=admin&amp;password=admin&amp;clientId=gw&amp;subscribeTopicNames=room1"/>
+    <camelContext id="gw" xmlns="http://camel.apache.org/schema/spring">
+        <route id="gw-mqtt-in">
+            <from uri="mqtt:gw-in?userName=admin&amp;password=admin&amp;clientId=gw-in&amp;subscribeTopicNames=gateway"/>
             <log message="Received message: ${body}"/>
+            <setBody>
+            	<constant>Echo from Gateway</constant>
+            </setBody>
+            <to uri="mqtt:gw-out-room1?userName=admin&amp;password=admin&amp;clientId=gw-out&amp;publishTopicName=room1"/>
         </route>
     </camelContext>
 </beans>
