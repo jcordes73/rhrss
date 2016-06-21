@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.redhat.iot</groupId>
   <artifactId>rhrss</artifactId>
-  <version>1.1.8</version>
+  <version>1.0.0</version>
   <packaging>pom</packaging>
   <name>Red Hat Room Survey System</name>
   <url>http://www.redhat.com</url>
