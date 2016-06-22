@@ -5,7 +5,7 @@
   <artifactId>rhrss</artifactId>
   <version>1.0.0</version>
   <packaging>pom</packaging>
-  <name>Red Hat Room Survey System</name>
+  <name>Red Hat Room Surveillance System</name>
   <url>http://www.redhat.com</url>
   <properties>
     <jboss.fuse.bom.version>6.2.1.redhat-084</jboss.fuse.bom.version>

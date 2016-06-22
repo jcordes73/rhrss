@@ -4,65 +4,51 @@
     xmlns:cm="http://aries.apache.org/blueprint/xmlns/blueprint-cm/v1.0.0"
     xmlns:ext="http://aries.apache.org/blueprint/xmlns/blueprint-ext/v1.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.osgi.org/xmlns/blueprint/v1.0.0 http://www.osgi.org/xmlns/blueprint/v1.0.0/blueprint.xsd        http://camel.apache.org/schema/blueprint http://camel.apache.org/schema/blueprint/camel-blueprint.xsd        ">
-    
     <cm:property-placeholder persistent-id="com.redhat.iot.gw">
-       <cm:default-properties>
-          <cm:property name="com.redhat.iot.dc.activemq.host"
-                       value="localhost" />
-          <cm:property name="com.redhat.iot.dc.activemq.port"
-                       value="61616" />             
-          <cm:property name="com.redhat.iot.dc.activemq.username"
-                       value="admin" />
-          <cm:property name="com.redhat.iot.dc.activemq.password"
-                       value="admin" />
-          <cm:property name="com.redhat.iot.gw.mqtt.username"
-                       value="admin" />
-          <cm:property name="com.redhat.iot.gw.mqtt.password"
-                       value="admin" />
-          <cm:property name="com.redhat.iot.gw.location"
-                       value="MUC" />
-       </cm:default-properties>
+        <cm:default-properties>
+            <cm:property name="com.redhat.iot.dc.activemq.host" value="localhost"/>
+            <cm:property name="com.redhat.iot.dc.activemq.port" value="61616"/>
+            <cm:property name="com.redhat.iot.dc.activemq.username" value="admin"/>
+            <cm:property name="com.redhat.iot.dc.activemq.password" value="admin"/>
+            <cm:property name="com.redhat.iot.gw.mqtt.username" value="admin"/>
+            <cm:property name="com.redhat.iot.gw.mqtt.password" value="admin"/>
+            <cm:property name="com.redhat.iot.gw.location" value="muc"/>
+        </cm:default-properties>
     </cm:property-placeholder>
-
     <ext:property-placeholder id="system-property-placeholder"
-       placeholder-prefix="{{" placeholder-suffix="}}">
-      <ext:default-properties />
+        placeholder-prefix="{{" placeholder-suffix="}}">
+        <ext:default-properties/>
     </ext:property-placeholder>
-        
-    <bean id="activemq" class="org.apache.activemq.camel.component.ActiveMQComponent">
+    <bean class="org.apache.activemq.camel.component.ActiveMQComponent" id="activemq">
         <property name="brokerURL" value="tcp://${com.redhat.iot.dc.activemq.host}:${com.redhat.iot.dc.activemq.port}"/>
         <property name="userName" value="${com.redhat.iot.dc.activemq.username}"/>
         <property name="password" value="${com.redhat.iot.dc.activemq.password}"/>
     </bean>
-    
-    <bean id="mqtt" class="org.apache.camel.component.mqtt.MQTTComponent">
+    <bean class="org.apache.camel.component.mqtt.MQTTComponent" id="mqtt">
         <property name="userName" value="${com.redhat.iot.gw.mqtt.username}"/>
         <property name="password" value="${com.redhat.iot.gw.mqtt.password}"/>
     </bean>
-    
     <bean class="com.redhat.iot.rhrss.gw.camel.RouteToDevice" id="routeToDevice"/>
-    
     <camelContext id="gw" xmlns="http://camel.apache.org/schema/blueprint">
         <route id="gw-mqtt-in">
             <from id="_from1" uri="mqtt:gw-in?clientId=gw-in&amp;subscribeTopicNames=gateway"/>
+            <convertBodyTo id="_convertBodyTo1" type="java.lang.String"/>
             <log id="_log1" message="Received message: ${body}"/>
-            <camel:setOutHeader headerName="location">
-            	<simple>${com.redhat.iot.gw.location}</simple>
-            </camel:setOutHeader>
-            <camel:setOutHeader headerName="room-id">
-            	<xpath>/message/id</xpath>
-            </camel:setOutHeader>
+            <setHeader headerName="location" id="_setHeader1">
+                <simple>${properties:com.redhat.iot.gw.location}</simple>
+            </setHeader>
+            <setHeader headerName="room" id="_setHeader2">
+                <xpath resultType="java.lang.String">//message/id</xpath>
+            </setHeader>
+            <setHeader headerName="motion" id="_setHeader3">
+                <xpath resultType="java.lang.String">//message/pir</xpath>
+            </setHeader>
             <to id="_to1" uri="activemq:queue:dc.in"/>
         </route>
         <route id="gw-mqtt-out">
-            <from id="_from2" uri="activemq:queue:dc.out"/>
+            <from id="_from2" uri="activemq:queue:dc.{{com.redhat.iot.gw.location}}.out"/>
             <log id="_log2" message="Received message: ${body}"/>
-            <setBody id="_setBody1">
-                <constant>Echo from Gateway</constant>
-            </setBody>
-            <setProperty id="_setProperty1" propertyName="room-id">
-                <xpath>/message/id</xpath>
-            </setProperty>
+            <to id="_to2" uri="string-template:com/redhat/iot/gw/mqtt/response.tm?delimiterStart={&amp;delimiterStop=}"/>
             <recipientList id="_recipientList1">
                 <method method="routeTo" ref="routeToDevice"/>
             </recipientList>

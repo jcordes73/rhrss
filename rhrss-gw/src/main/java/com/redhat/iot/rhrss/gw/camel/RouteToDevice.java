@@ -5,8 +5,8 @@ import org.apache.camel.Exchange;
 public class RouteToDevice {
 
 	public String routeTo(Exchange exchange){
-		String roomId = (String)exchange.getProperty("room-id");
+		String roomId = exchange.getIn().getHeader("room", java.lang.String.class);
 		
-		return "mqtt:gw-out-"+ roomId + "?clientId=gw-out&publishTopicName=" + roomId;
+		return "mqtt:gw-out-"+ roomId + "?clientId=gw-out-"+ roomId + "&publishTopicName=" + roomId;
 	}
 }

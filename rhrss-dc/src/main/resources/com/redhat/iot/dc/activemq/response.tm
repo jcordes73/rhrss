@@ -1,0 +1,1 @@
+<reservations><current><exists>{headers.reserved}</exists><from>{headers.reservationStart}</from><to>{headers.reservationEnd}</to></current><next><exists>1</exists><from>2016-06-22 15:00 CET</from><to>2016-06-22 16:00 CET</to></next></reservations>

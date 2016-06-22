@@ -1,0 +1,2 @@
+2016-06-22 10:00 CET - 11:00 CET Occupied
+2016-06-22 15:00 CET - 16:00 CET Occupied

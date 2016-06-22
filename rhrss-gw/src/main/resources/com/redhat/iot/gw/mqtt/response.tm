@@ -1,0 +1,1 @@
+<message><id>gateway</id><room>{headers.room}</room>{body}<message>

@@ -4,36 +4,95 @@
     xmlns:cm="http://aries.apache.org/blueprint/xmlns/blueprint-cm/v1.0.0"
     xmlns:ext="http://aries.apache.org/blueprint/xmlns/blueprint-ext/v1.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.osgi.org/xmlns/blueprint/v1.0.0 http://www.osgi.org/xmlns/blueprint/v1.0.0/blueprint.xsd        http://camel.apache.org/schema/blueprint http://camel.apache.org/schema/blueprint/camel-blueprint.xsd        ">
-
     <cm:property-placeholder persistent-id="com.redhat.iot.dc">
-       <cm:default-properties>
-          <cm:property name="com.redhat.iot.dc.activemq.host"
-                       value="localhost" />
-          <cm:property name="com.redhat.iot.dc.activemq.port"
-                       value="61616" />             
-          <cm:property name="com.redhat.iot.dc.activemq.username"
-                       value="admin" />
-          <cm:property name="com.redhat.iot.dc.activemq.password"
-                       value="admin" />
-       </cm:default-properties>
+        <cm:default-properties>
+            <cm:property name="com.redhat.iot.dc.activemq.host" value="localhost"/>
+            <cm:property name="com.redhat.iot.dc.activemq.port" value="61616"/>
+            <cm:property name="com.redhat.iot.dc.activemq.username" value="admin"/>
+            <cm:property name="com.redhat.iot.dc.activemq.password" value="admin"/>
+            <cm:property
+                name="com.redhat.iot.dc.google.calendar.application.name" value="red-hat-room-survey-system"/>
+            <cm:property name="com.redhat.iot.dc.google.calendar.id" value="mat639a7moo1vs48qn40ogdsog@group.calendar.google.com"/>    
+            <cm:property name="com.redhat.iot.dc.google.calendar.scopes" value="https://www.googleapis.com/auth/calendar"/>
+            <cm:property
+                name="com.redhat.iot.dc.google.calendar.client.id" value="407408718192.apps.googleusercontent.com"/>
+            <cm:property
+                name="com.redhat.iot.dc.google.calendar.client.secret" value="MeYLBdw0EQ4E2YIjmgihnBCL"/>
+            <cm:property
+                name="com.redhat.iot.dc.google.calendar.refreshToken" value="1/9-N2EPiNMt6crBflQtiIXUhB55gYH8OqVkPGF0AViDo"/>
+        </cm:default-properties>
     </cm:property-placeholder>
-
     <ext:property-placeholder id="system-property-placeholder"
-       placeholder-prefix="{{" placeholder-suffix="}}">
-      <ext:default-properties />
+        placeholder-prefix="{{" placeholder-suffix="}}">
+        <ext:default-properties/>
     </ext:property-placeholder>
-    
-    <bean id="activemq" class="org.apache.activemq.camel.component.ActiveMQComponent">
+    <bean class="org.apache.activemq.camel.component.ActiveMQComponent" id="activemq">
         <property name="brokerURL" value="tcp://${com.redhat.iot.dc.activemq.host}:${com.redhat.iot.dc.activemq.port}"/>
         <property name="userName" value="${com.redhat.iot.dc.activemq.username}"/>
         <property name="password" value="${com.redhat.iot.dc.activemq.password}"/>
     </bean>
     
+    <bean class="com.redhat.iot.rhrss.dc.camel.RouteToGateway" id="routeToGateway"/>
+    
+    <bean id="datasource" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
+        <property name="driverClassName" value="org.apache.derby.jdbc.EmbeddedDriver"/>
+        <property name="url" value="jdbc:derby:memory:rhrss;create=true"/>
+        <property name="username" value=""/>
+        <property name="password" value=""/>
+    </bean>
+    
+    <bean id="initDatabase" class="com.redhat.iot.rhrss.dc.data.InitDatabase">
+         <argument ref="datasource" />
+    </bean>
+  
+    <bean id="calendarEventProcessor" class="com.redhat.iot.rhrss.dc.camel.CalendarEventProcessor">
+        <property name="datasource" ref="datasource"/>
+    </bean>
+    
+    <bean id="roomAvailabilityProcessor" class="com.redhat.iot.rhrss.dc.camel.RoomAvailabilityProcessor">
+        <property name="datasource" ref="datasource"/>
+    </bean>
+    
+    <bean
+        class="org.apache.camel.component.google.calendar.GoogleCalendarConfiguration" id="googleCalendarConfiguration">
+        <property name="applicationName" value="${com.redhat.iot.dc.google.calendar.application.name}"/>
+        <property name="scopes">
+            <list>
+                <value>${com.redhat.iot.dc.google.calendar.scopes}</value>
+            </list>
+        </property>
+        <property name="clientId" value="${com.redhat.iot.dc.google.calendar.client.id}"/>
+        <property name="clientSecret" value="${com.redhat.iot.dc.google.calendar.client.secret}"/>
+        <property name="refreshToken" value="${com.redhat.iot.dc.google.calendar.refreshToken}"/>
+    </bean>
+    <bean
+        class="org.apache.camel.component.google.calendar.GoogleCalendarComponent" id="google-calendar">
+        <property name="configuration" ref="googleCalendarConfiguration"/>
+    </bean>
     <camelContext id="dc" xmlns="http://camel.apache.org/schema/blueprint">
         <route id="dc-in">
             <from id="_from1" uri="activemq:queue:dc.in"/>
+            <!-- <to uri="google-calendar://events/list?calendarId={{com.redhat.iot.dc.google.calendar.id}}"/> -->
             <log id="_log1" message="Received message: ${body}"/>
-            <to id="_to1" uri="activemq:queue:dc.out"/>
+            <process ref="roomAvailabilityProcessor"/>
+            <to id="_to2" uri="string-template:com/redhat/iot/dc/activemq/response.tm?delimiterStart={&amp;delimiterStop=}"/>
+            <recipientList id="_recipientList1">
+                <method method="routeTo" ref="routeToGateway"/>
+            </recipientList>
+        </route>
+        
+        <route id="mobile">
+        	<from uri="jetty:http://0.0.0.0:8080/rhrss" />
+        	<to uri="string-template:com/redhat/iot/dc/mobile/response.tm?delimiterStart={&amp;delimiterStop=}"/>
+        </route>
+        
+        <route id="calendar-event">
+        	<from uri="file:{{karaf.home}}/calendar-events"/>
+        	<split>
+        	    <tokenize token="\n"/>
+        	    <log message="Processing calendar-event ${body}"/>
+        		<process ref="calendarEventProcessor"/>
+        	</split>
         </route>
     </camelContext>
 </blueprint>
